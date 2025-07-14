@@ -1,33 +1,33 @@
--- @description Umanizza fine note MIDI
+-- @description Humanize MIDI note ends
 -- @version 1.0
 -- @changelog
--- v1.0 - Prima pubblicazione
+-- v1.1 - English translation
 -- @about
--- Questo script randomizza solo la fine delle note MIDI mantenendo temporalmente identico l'inizio
--- Permette di selezionare tutte le note o solo alcune, regolare l'intensità della modifica, generare un nuovo seed per la randomizzazione
--- Hotkeys sono 'Enter' per avviare il processo e chiuderlo in automatico, 'Esc' per uscire, 'r' o 'R' per rigenerare il seed
--- La finestra dev'essere selezionata e dev'essere aperto un editor midi affinchè ogni interazione funzioni
--- Funziona anche con decine di migliaia di note midi, ma sopra il mezzo milione l'elaborazione inizia a prendere più di 10 secondi
--- La struttura di base è stata fornita da Claude.AI, il codice finale è stato modificato e verificato da me
+-- This script randomizes only the ends of MIDI notes while keeping the beginning temporally identical.
+-- It allows you to select all or just some notes, adjust the intensity of the change, and generate a new seed for the randomization.
+-- Hotkeys are 'Enter' to start the process and automatically close it, 'Esc' to exit, and 'r' or 'R' to regenerate the seed.
+-- The window must be selected and a MIDI editor must be open for any interaction to work.
+-- It works with tens of thousands of MIDI notes, but above half a million, processing starts to take more than 10 seconds.
+-- The basic structure was provided by Claude.AI; the final code was modified and verified by me.
 -- @license GPL-3.0
 
 
 do
     local reaper = reaper
     
-    -- Configurazione
+    -- Configuration
     local EXT_SECTION = "RandomNoteLength"
     local EXT_KEY_INTENSITY = "Intensity" 
     local EXT_KEY_APPLYALL = "ApplyAll"
     local EXT_KEY_SEED = "RandomSeed"
     
-    -- Dimensioni finestra
+    -- Window dimensions
     local DEFAULT_WND_W = 400
     local DEFAULT_WND_H = 200
     local MIN_WND_W = 350
     local MIN_WND_H = 180
     
-    -- Cache funzioni per prestazioni
+    -- Cache functions for performances
     local random = math.random
     local randomseed = math.randomseed
     local floor = math.floor
@@ -39,7 +39,7 @@ do
     local midi_ppq_to_time = reaper.MIDI_GetProjTimeFromPPQPos
     local midi_time_to_ppq = reaper.MIDI_GetPPQPosFromProjTime
     
-    -- Stato globale
+    -- Global state
     local state = {
         intensity = tonumber(reaper.GetExtState(EXT_SECTION, EXT_KEY_INTENSITY)) or 0.5,
         applyToAllNotes = (reaper.GetExtState(EXT_SECTION, EXT_KEY_APPLYALL) ~= "0"),
@@ -69,14 +69,14 @@ do
     randomseed(state.current_seed)
     reaper.SetExtState(EXT_SECTION, EXT_KEY_SEED, tostring(state.current_seed), true)
     
-    -- Salva impostazioni
+    -- Save settings
     local function saveSettings()
         reaper.SetExtState(EXT_SECTION, EXT_KEY_INTENSITY, tostring(state.intensity), true)
         reaper.SetExtState(EXT_SECTION, EXT_KEY_APPLYALL, state.applyToAllNotes and "1" or "0", true)
         reaper.SetExtState(EXT_SECTION, EXT_KEY_SEED, tostring(state.current_seed), true)
     end
     
-    -- Genera nuovo seed
+    -- Generate new seed
     local function generateNewSeed()
         state.current_seed = os_time() + random(1000, 9999)
         randomseed(state.current_seed)
@@ -85,7 +85,7 @@ do
         saveSettings()
     end
     
-    -- Rigenerazione automatica seed in background
+    -- Automatic seed regeneration in background
     local function checkAutoSeedRegeneration()
         state.auto_seed_cycles = state.auto_seed_cycles + 1
         if state.auto_seed_cycles >= state.auto_seed_interval then
@@ -93,7 +93,7 @@ do
         end
     end
     
-    -- Processamento principale note MIDI
+    -- Main process for MIDI notes
     local function processNotes()
         local take = reaper.MIDIEditor_GetTake(reaper.MIDIEditor_GetActive())
         if not take then return end
@@ -104,14 +104,14 @@ do
         
         reaper.Undo_BeginBlock()
         
-        -- Ottieni tutti gli eventi MIDI
+        -- Get all MIDI events
         local gotAllOK, MIDIstring = reaper.MIDI_GetAllEvts(take, "")
         if not gotAllOK then
             reaper.Undo_EndBlock("Randomizza fine note", 0)
             return
         end
         
-        -- Identifica tutte le coppie Note On/Off
+        -- Identify all couples of note On/Off
         local note_pairs = {}
         local active_notes = {}
         local MIDIlen = MIDIstring:len()
@@ -119,7 +119,7 @@ do
         local modifications = 0
         local running_ppq = 0
         
-        -- Prima passata: trova tutte le coppie Note On/Off, metodo di @juliansader
+        -- First pass: find all couples of note On/Off, method by @juliansader
         while positionInString < MIDIlen - 12 do
             local offset, flags, msg, newPos = string_unpack("i4Bs4", MIDIstring, positionInString)
             if not newPos or newPos <= positionInString then break end
@@ -199,7 +199,7 @@ do
             positionInString = newPos
         end
         
-        -- Ricostruisci il MIDI string con le modifiche
+        -- Rebuild MIDI string with modifications
         if modifications > 0 then
             local pos_to_new_ppq = {}
             for _, pair in ipairs(note_pairs) do
@@ -243,7 +243,7 @@ do
                 local delta_offset = event.ppq - previous_ppq
                 if delta_offset < 0 then delta_offset = 0 end
                 
-                -- Fix: Converti delta_offset in intero
+                -- Fix: Convert delta_offset to integer
                 delta_offset = floor(delta_offset + 0.5)
                 
                 new_events[i] = string_pack("i4Bs4", delta_offset, event.flags, event.msg)
@@ -262,16 +262,16 @@ do
         state.last_notes_processed = modifications
         state.last_method_used = "Standard"
         
-        -- Rigenerazione automatica seed
+        -- Automatic seed regeneration
         checkAutoSeedRegeneration()
     end
     
-    -- Metodo adattivo per processamento
+    -- Equivalence to old process
     local function processNotesAdaptive()
         processNotes()
     end
     
-    -- Aggiorna layout responsive
+    -- Update responsive layout
     local function updateLayout()
         local W, H = gfx.w, gfx.h
         
@@ -316,7 +316,7 @@ do
         layout.info_box_x = margin
     end
     
-    -- Disegna interfaccia grafica, ispirata dallo Humanizer nativo di Reaper
+    -- Draw GUI, inspired by Reaper's native Humanizer
     local function drawGUI()
         local W, H = gfx.w, gfx.h
         updateLayout()
@@ -342,7 +342,7 @@ do
         gfx.set(0.1, 0.1, 0.1)
         gfx.x = layout.radio1_x + radio_size + 8
         gfx.y = layout.radio_y + (radio_size - layout.font_size)/2
-        gfx.drawstr("Tutte le note")
+        gfx.drawstr("All notes")
         
         gfx.set(1, 1, 1)
         gfx.circle(layout.radio2_x + radio_size/2, layout.radio_y + radio_size/2, radio_size/2, 1)
@@ -357,13 +357,13 @@ do
         gfx.set(0.1, 0.1, 0.1)
         gfx.x = layout.radio2_x + radio_size + 8
         gfx.y = layout.radio_y + (radio_size - layout.font_size)/2
-        gfx.drawstr("Note selezionate")
+        gfx.drawstr("Selected notes")
         
-        -- Slider intensità
+        -- Intensity slider
         gfx.set(0.1, 0.1, 0.1)
         gfx.x = layout.radio1_x
         gfx.y = layout.intensity_y + (layout.slider_h - layout.font_size)/2
-        gfx.drawstr("Intensità:")
+        gfx.drawstr("Intensity:")
         
         gfx.set(0.85, 0.85, 0.85)
         gfx.rect(layout.slider_x, layout.intensity_y, layout.slider_w, layout.slider_h)
@@ -371,7 +371,7 @@ do
         gfx.rect(layout.slider_x, layout.intensity_y, layout.slider_w, 2)
         gfx.rect(layout.slider_x, layout.intensity_y + layout.slider_h - 2, layout.slider_w, 2)
         
-        -- Segni di graduazione
+        -- Tick marks
         local segments = 10
         for i = 1, segments - 1 do
             local x = layout.slider_x + (layout.slider_w * i / segments)
@@ -379,7 +379,7 @@ do
             gfx.line(x, layout.intensity_y + layout.slider_h - 8, x, layout.intensity_y + layout.slider_h - 2)
         end
         
-        -- Linea centrale trasparente (50%)
+        -- Transparent center line (50%)
         local center_x = layout.slider_x + layout.slider_w / 2
         gfx.set(0.4, 0.4, 0.4, 0.0)
         gfx.line(center_x, layout.intensity_y + 2, center_x, layout.intensity_y + layout.slider_h - 2)
@@ -398,7 +398,7 @@ do
         local percent_idx = floor(state.intensity * 100 + 0.5)
         gfx.drawstr(percentage_cache[percent_idx])
         
-        -- Pulsanti
+        -- Buttons
         local current_time = time_precise()
         local seed_active = (current_time - state.seed_confirmation_time) < state.seed_confirmation_duration
         local execute_active = state.execute_confirmed and (current_time - state.execute_confirmation_time) < state.execute_confirmation_duration
@@ -417,7 +417,7 @@ do
         end
         
         gfx.set(0.1, 0.1, 0.1)
-        local seed_text = "Nuovo seed random"
+        local seed_text = "New random seed"
         local text_w, text_h = gfx.measurestr(seed_text)
         gfx.x = layout.seed_btn_x + (layout.seed_btn_w - text_w)/2
         gfx.y = layout.btn_y + (layout.btn_h - text_h)/2
@@ -437,13 +437,13 @@ do
         end
         
         gfx.set(0.1, 0.1, 0.1)
-        local exec_text = "ESEGUI"
+        local exec_text = "RUN"
         local exec_w, exec_h = gfx.measurestr(exec_text)
         gfx.x = layout.execute_btn_x + (layout.execute_btn_w - exec_w)/2
         gfx.y = layout.btn_y + (layout.btn_h - exec_h)/2
         gfx.drawstr(exec_text)
         
-        -- Box statistiche
+        -- Statistics box
         if state.last_execution_time > 0 then
             gfx.set(0.98, 0.98, 0.98)
             gfx.rect(layout.info_box_x, layout.info_box_y, layout.info_box_w, layout.info_box_h)
@@ -457,21 +457,21 @@ do
             
             gfx.set(0.1, 0.1, 0.1)
             gfx.x, gfx.y = layout.info_box_x + 8, info_y
-            local stats_text = "Statistiche: " .. string.format("%.3f", state.last_execution_time) .. "s"
+            local stats_text = "Statistics: " .. string.format("%.3f", state.last_execution_time) .. "s"
             if state.last_notes_processed > 0 then
                 local speed = state.last_notes_processed / state.last_execution_time
-                stats_text = stats_text .. " | " .. tostring(state.last_notes_processed) .. " note | " .. string.format("%.0f", speed) .. "/s"
+                stats_text = stats_text .. " | " .. tostring(state.last_notes_processed) .. " note(s) | " .. string.format("%.0f", speed) .. "/s"
             end
             gfx.drawstr(stats_text)
         end
     end
     
-    -- Controlla se punto è dentro rettangolo
+    -- Check if point is inside rectangle
     local function isInRect(x, y, rx, ry, rw, rh)
         return x >= rx and x <= rx + rw and y >= ry and y <= ry + rh
     end
     
-    -- Gestisce input mouse
+    -- Handle input mouse
     local function handleMouse()
         local mx, my = gfx.mouse_x, gfx.mouse_y
         local mouse_down = gfx.mouse_cap & 1 == 1
@@ -484,7 +484,7 @@ do
             elseif isInRect(mx, my, layout.radio2_x, layout.radio_y, 140, radio_size + 4) then
                 state.applyToAllNotes = false
             elseif isInRect(mx, my, layout.slider_x, layout.intensity_y, layout.slider_w, layout.slider_h) then
-                -- Controllo doppio click sullo slider
+                -- Check double click on slider
                 if (current_time - state.last_slider_click_time) < state.double_click_threshold then
                     state.intensity = 0.5
                 else
@@ -510,28 +510,28 @@ do
         state.mouse_was_down = mouse_down
     end
     
-    -- Loop principale dell'interfaccia
+    -- Main loop of the interface
     local function mainLoop()
         local char = gfx.getchar()
-        if char < 0 or char == 27 then  -- ESC per chiudere
+        if char < 0 or char == 27 then  -- ESC to close
             saveSettings()
             gfx.quit()
             return
         end
         
-        if char == 13 then  -- Enter/return per eseguire e chiudere
-            -- Feedback visivo
+        if char == 13 then  -- Enter/return to execute and close
+            -- Visual feedback
             state.execute_confirmation_time = time_precise()
             state.execute_confirmed = true
             processNotesAdaptive()
             
-            -- Chiudi automaticamente dopo l'esecuzione
+            -- Close automatically after this specific execution
             saveSettings()
             gfx.quit()
             return
         end
 
-        if char == 114 or char == 82 then  -- 'r' o 'R' per generare nuovo seed
+        if char == 114 or char == 82 then  -- 'r' o 'R' to regenerate a new seed
             generateNewSeed()
         end
         
@@ -541,12 +541,12 @@ do
         reaper.defer(mainLoop)
     end
     
-    -- Inizializza e avvia GUI
-    if gfx.init("Umanizza fine note", DEFAULT_WND_W, DEFAULT_WND_H, 1) then
+    -- Initialize and start GUI
+    if gfx.init("Humanize MIDI note ends", DEFAULT_WND_W, DEFAULT_WND_H, 1) then
         gfx.dock(0)
         mainLoop()
     else
-        reaper.ShowMessageBox("Errore nell'inizializzazione della GUI", "Errore", 0)
+        reaper.ShowMessageBox("Error initializing GUI", "Error", 0)
     end
 end
 
